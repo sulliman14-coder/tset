@@ -1,0 +1,187 @@
+const API_BASE = '/.netlify/functions';
+
+const defaultConfig = {
+  coffee_shop_name: 'كوزي كوفي',
+  tagline: 'لحظات دافئة مع كل رشفة',
+  promo_text: 'اشتري 2 واحصل على الثالث مجاناً',
+  whatsapp_number: '0596466303',
+  delivery_fee: '10',
+  min_order: '25',
+  discount_code: 'COFFEE20',
+  discount_percentage: '20',
+  logo_url: '',
+  global_discount_enabled: 'false',
+  global_discount_percent: '0',
+  hero_overlay_color: '#6F4E37',
+  hero_overlay_opacity: '80',
+  hero_show_text: 'true',
+  hero_banners: JSON.stringify([
+    'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=1920&h=600&fit=crop'
+  ])
+};
+
+let appConfig = { ...defaultConfig };
+let currentBannerSlide = 0;
+let bannerInterval = null;
+
+// ============================================
+// دوال API للتواصل مع Netlify Functions
+// ============================================
+
+async function loadSettingsFromDB() {
+  showLoading(true);
+  try {
+    const response = await fetch(`${API_BASE}/get-settings`);
+    const result = await response.json();
+    
+    if (result.success && result.data) {
+      const settingsObj = {};
+      result.data.forEach(item => {
+        if (item.setting_key && item.setting_value !== null) {
+          settingsObj[item.setting_key] = item.setting_value;
+        }
+      });
+      
+      if (Object.keys(settingsObj).length > 0) {
+        appConfig = { ...defaultConfig, ...settingsObj };
+        updateUI();
+      }
+    }
+  } catch (error) {
+    console.error('Error loading settings:', error);
+    showMessage('فشل تحميل الإعدادات - سيتم استخدام الإعدادات الافتراضية');
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function saveSettingsToDB(settings) {
+  showLoading(true);
+  try {
+    const response = await fetch(`${API_BASE}/save-settings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ settings })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      showMessage('✅ تم حفظ الإعدادات بنجاح!');
+      return true;
+    } else {
+      showMessage('❌ فشل حفظ الإعدادات: ' + result.error);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error saving settings:', error);
+    showMessage('❌ حدث خطأ أثناء الحفظ');
+    return false;
+  } finally {
+    showLoading(false);
+  }
+}
+
+// ============================================
+// دوال واجهة المستخدم
+// ============================================
+
+function showLoading(show) {
+  const overlay = document.getElementById('loadingOverlay');
+  if (overlay) {
+    overlay.classList.toggle('show', show);
+  }
+}
+
+function showMessage(text) {
+  const msg = document.getElementById('successMessage');
+  if (msg) {
+    msg.textContent = text;
+    msg.classList.add('show');
+    setTimeout(() => {
+      msg.classList.remove('show');
+    }, 3000);
+  }
+}
+
+function updateUI() {
+  const appName = document.getElementById('app-name');
+  const mainTitle = document.getElementById('main-title');
+  const subTitle = document.getElementById('sub-title');
+  const promoBadge = document.getElementById('promo-badge');
+  const logoEmoji = document.getElementById('logoEmoji');
+  const logoImage = document.getElementById('logoImage');
+  
+  if (appName) appName.textContent = appConfig.coffee_shop_name || defaultConfig.coffee_shop_name;
+  if (mainTitle) mainTitle.textContent = appConfig.coffee_shop_name || defaultConfig.coffee_shop_name;
+  if (subTitle) subTitle.textContent = appConfig.tagline || defaultConfig.tagline;
+  if (promoBadge) promoBadge.textContent = '☕ ' + (appConfig.promo_text || defaultConfig.promo_text);
+  
+  const logoUrl = appConfig.logo_url || defaultConfig.logo_url;
+  if (logoUrl && logoImage && logoEmoji) {
+    logoImage.src = logoUrl;
+    logoImage.style.display = 'block';
+    logoEmoji.style.display = 'none';
+    logoImage.onerror = function() {
+      this.style.display = 'none';
+      logoEmoji.style.display = 'block';
+    };
+  } else if (logoImage && logoEmoji) {
+    logoImage.style.display = 'none';
+    logoEmoji.style.display = 'block';
+  }
+  
+  renderHeroBanners();
+  renderProducts();
+}
+
+// ============================================
+// دالة حفظ الإعدادات من لوحة التحكم
+// ============================================
+
+async function saveAdminSettings() {
+  const saveBtn = document.querySelector('.save-admin-btn');
+  if (saveBtn) saveBtn.disabled = true;
+
+  const updates = {
+    coffee_shop_name: document.getElementById('adminCoffeeName').value,
+    tagline: document.getElementById('adminTagline').value,
+    whatsapp_number: document.getElementById('adminWhatsapp').value,
+    promo_text: document.getElementById('adminPromo').value,
+    logo_url: document.getElementById('adminLogoUrl').value,
+    hero_overlay_color: document.getElementById('adminOverlayColor').value,
+    hero_overlay_opacity: document.getElementById('adminOverlayOpacity').value,
+    hero_show_text: document.getElementById('adminShowTextToggle').classList.contains('active') ? 'true' : 'false',
+    delivery_fee: document.getElementById('adminDeliveryFee').value,
+    min_order: document.getElementById('adminMinOrder').value,
+    discount_code: document.getElementById('adminDiscountCode').value,
+    discount_percentage: document.getElementById('adminDiscountPercent').value,
+    global_discount_enabled: document.getElementById('adminGlobalDiscountToggle').classList.contains('active') ? 'true' : 'false',
+    global_discount_percent: document.getElementById('adminGlobalDiscountPercent').value,
+    hero_banners: JSON.stringify(tempBanners)
+  };
+
+  const success = await saveSettingsToDB(updates);
+  
+  if (success) {
+    appConfig = { ...appConfig, ...updates };
+    updateUI();
+    closeAdminPanel();
+  }
+  
+  if (saveBtn) saveBtn.disabled = false;
+}
+
+// ============================================
+// تحميل الإعدادات عند فتح الصفحة
+// ============================================
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadSettingsFromDB();
+  renderProducts();
+  updateCartBadge();
+});
+
+//

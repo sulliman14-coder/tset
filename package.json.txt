@@ -1,0 +1,17 @@
+{
+  "name": "cozy-coffee-shop",
+  "version": "1.0.0",
+  "description": "موقع كوفي شوب متكامل مع Netlify + Neon",
+  "main": "index.html",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'Build complete'",
+    "deploy": "netlify deploy --prod"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.9.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  }
+}
