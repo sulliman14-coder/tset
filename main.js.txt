@@ -1,0 +1,630 @@
+/**
+ * ملف main.js
+ * يحتوي على جميع أكواد JavaScript للموقع: إدارة الحاسبة، التنبيهات، القائمة الجانبية، والتحقق من النماذج.
+ */
+
+// =========================================================
+// 1. تعريف حالة التطبيق والمتغيرات العامة
+// =========================================================
+
+// البيانات الأساسية للباقات والخدمات (يجب أن تكون مطابقة لملفك الأصلي)
+const packages = {
+    1: { id: 1, name: "باقة البداية", price: 2999, originalPrice: 3500, discount: 501, features: ["موقع تعريفي", "تصميم شعار"] },
+    2: { id: 2, name: "باقة النمو", price: 7999, originalPrice: 9500, discount: 1501, features: ["متجر إلكتروني", "هوية بصرية", "إدارة سوشيال ميديا (شهر)"] },
+    3: { id: 3, name: "الباقة الاحترافية", price: 14999, originalPrice: 18000, discount: 3001, features: ["تطوير تطبيق جوال أصيل", "تصميم UX/UI متقدم", "إدارة حملات تسويقية (3 أشهر)"] }
+};
+
+const services = {
+    4: { id: 4, name: "تصميم شعار (منفرد)", price: 800 },
+    5: { id: 5, name: "موقع تعريفي (6 صفحات)", price: 3000 },
+    6: { id: 6, name: "إدارة سوشيال ميديا (شهر)", price: 1500 },
+    7: { id: 7, name: "تصميم متجر إلكتروني (أساسي)", price: 6000 },
+    8: { id: 8, name: "إعلانات جوجل/سناب (شهر)", price: 1000 }
+};
+
+// حالة الحاسبة
+let selectedItems = {};
+let currentStep = 1;
+const totalSteps = 3;
+
+// حالة معلومات العميل
+let clientInfo = {
+    name: '',
+    phone: '',
+    email: '',
+    company: '',
+    type: 'individual'
+};
+
+// حالة الملخص
+let totalOriginalPrice = 0;
+let totalDiscount = 0;
+let finalTotal = 0;
+let discountMessage = '';
+
+// =========================================================
+// 2. وظائف عامة مساعدة
+// =========================================================
+
+/**
+ * لعرض إشعار تنبيه (نجاح/خطأ/معلومات)
+ * @param {string} message - نص الرسالة
+ * @param {string} type - نوع الإشعار ('success', 'error', 'info')
+ */
+function showNotification(message, type = 'info') {
+    const notification = document.getElementById('notification');
+    notification.textContent = message;
+    notification.className = `notification show ${type}`;
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, 4000);
+}
+
+// =========================================================
+// 3. وظائف القائمة الجانبية (Mobile Menu)
+// =========================================================
+
+function toggleMobileMenu() {
+    const menu = document.getElementById('mobileMenu');
+    const overlay = document.getElementById('mobileMenuOverlay');
+    const menuIcon = document.getElementById('menuIcon');
+    const closeIcon = document.getElementById('closeIcon');
+
+    const isOpen = menu.classList.toggle('open');
+    
+    if (isOpen) {
+        overlay.classList.remove('opacity-0', 'pointer-events-none');
+        overlay.classList.add('opacity-50');
+        menuIcon.classList.add('hidden');
+        closeIcon.classList.remove('hidden');
+    } else {
+        overlay.classList.add('opacity-0', 'pointer-events-none');
+        overlay.classList.remove('opacity-50');
+        menuIcon.classList.remove('hidden');
+        closeIcon.classList.add('hidden');
+    }
+}
+
+
+// =========================================================
+// 4. وظائف حاسبة التكاليف (Calculator)
+// =========================================================
+
+/**
+ * فتح الحاسبة وتحميل الباقات والخدمات
+ * @param {number|null} packageId - لتحديد باقة معينة عند الفتح
+ */
+function openCalculator(packageId = null) {
+    // عرض النافذة المنبثقة
+    document.getElementById('calculatorModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden'; // منع التمرير في الخلفية
+    
+    // إعادة تعيين الحالة إذا كانت جديدة أو محددة مسبقاً
+    selectedItems = {};
+    clientInfo = { name: '', phone: '', email: '', company: '', type: 'individual' };
+    currentStep = 1;
+    updateCalculatorUI();
+    
+    // تحميل الباقات والخدمات
+    loadPackages();
+    loadServices();
+    
+    // تحديد باقة افتراضية إذا تم النقر عليها من زر الباقات
+    if (packageId && packages[packageId]) {
+        selectItem(packageId, 'package');
+        // الانتقال للخطوة التالية مباشرة بعد التحديد
+        nextStep();
+    }
+}
+
+function closeCalculator() {
+    document.getElementById('calculatorModal').style.display = 'none';
+    document.body.style.overflow = ''; // استعادة التمرير
+}
+
+/**
+ * تحديث واجهة المستخدم حسب الخطوة الحالية
+ */
+function updateCalculatorUI() {
+    document.getElementById('calculatorStep1').classList.add('hidden');
+    document.getElementById('calculatorStep2').classList.add('hidden');
+    document.getElementById('calculatorStep3').classList.add('hidden');
+    document.getElementById('nextStepBtn').classList.add('hidden');
+    document.getElementById('prevStepBtn').classList.add('hidden');
+    document.getElementById('submitBtn').classList.add('hidden');
+
+    // إظهار الخطوة الحالية
+    document.getElementById(`calculatorStep${currentStep}`).classList.remove('hidden');
+
+    // التحكم بأزرار التنقل
+    if (currentStep === 1) {
+        document.getElementById('nextStepBtn').classList.remove('hidden');
+        document.getElementById('prevStepBtn').classList.add('hidden');
+    } else if (currentStep === 2) {
+        document.getElementById('nextStepBtn').classList.remove('hidden');
+        document.getElementById('prevStepBtn').classList.remove('hidden');
+    } else if (currentStep === 3) {
+        document.getElementById('prevStepBtn').classList.remove('hidden');
+        document.getElementById('submitBtn').classList.remove('hidden');
+    }
+    
+    // تحديث المحتوى الخاص بالخطوة 
+    if (currentStep === 2) {
+        updateClientInfoForm();
+    } else if (currentStep === 3) {
+        updateSummary();
+    }
+}
+
+/**
+ * الانتقال للخطوة التالية في الحاسبة
+ */
+function nextStep() {
+    if (currentStep === 1) {
+        // التحقق من الخطوة 1: يجب اختيار باقة واحدة على الأقل أو خدمة واحدة
+        if (Object.keys(selectedItems).length === 0) {
+            showNotification('الرجاء اختيار باقة واحدة أو خدمة واحدة على الأقل للمتابعة.', 'error');
+            return;
+        }
+    } else if (currentStep === 2) {
+        // التحقق من الخطوة 2: التحقق من صحة المدخلات المطلوبة
+        if (!validateClientInfo()) {
+            showNotification('الرجاء تعبئة جميع الحقول المطلوبة بشكل صحيح (الاسم ورقم الهاتف).', 'error');
+            return;
+        }
+    }
+    
+    if (currentStep < totalSteps) {
+        currentStep++;
+        updateCalculatorUI();
+        // تمرير النافذة للأعلى
+        document.getElementById('calculatorContent').scrollTop = 0;
+    }
+}
+
+/**
+ * الانتقال للخطوة السابقة في الحاسبة
+ */
+function prevStep() {
+    if (currentStep > 1) {
+        currentStep--;
+        updateCalculatorUI();
+        document.getElementById('calculatorContent').scrollTop = 0;
+    }
+}
+
+/**
+ * تحميل الباقات في واجهة الحاسبة
+ */
+function loadPackages() {
+    const container = document.getElementById('packagesContainer');
+    container.innerHTML = '';
+    
+    Object.values(packages).forEach(pkg => {
+        const isSelected = selectedItems[pkg.id] === 'package';
+        
+        const card = document.createElement('div');
+        card.className = `p-4 border-2 rounded-lg cursor-pointer transition duration-200 ${isSelected ? 'border-indigo-600 bg-indigo-50 shadow-lg scale-105' : 'border-gray-200 bg-white hover:border-indigo-400'}`;
+        card.setAttribute('onclick', `selectItem(${pkg.id}, 'package')`);
+        
+        card.innerHTML = `
+            <div class="flex justify-between items-center mb-2">
+                <h4 class="text-xl font-bold text-gray-800">${pkg.name}</h4>
+                ${pkg.originalPrice > pkg.price ? `<span class="text-xs font-semibold text-red-500 bg-red-100 px-3 py-1 rounded-full">خصم ${((pkg.originalPrice - pkg.price) / pkg.originalPrice * 100).toFixed(0)}%</span>` : ''}
+            </div>
+            <div class="flex items-baseline mb-3">
+                <span class="text-3xl font-extrabold text-indigo-600">${pkg.price.toLocaleString()}</span>
+                <span class="text-sm font-medium text-gray-500 mr-1">ر.س</span>
+                ${pkg.originalPrice > pkg.price ? `<span class="text-sm line-through text-gray-400 mr-2">${pkg.originalPrice.toLocaleString()} ر.س</span>` : ''}
+            </div>
+            <ul class="space-y-1 text-sm text-gray-600">
+                ${pkg.features.map(f => `<li class="flex items-center"><svg class="w-4 h-4 text-indigo-500 ml-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg><span>${f}</span></li>`).join('')}
+            </ul>
+        `;
+        container.appendChild(card);
+    });
+}
+
+/**
+ * تحميل الخدمات الفردية في واجهة الحاسبة
+ */
+function loadServices() {
+    const container = document.getElementById('servicesContainer');
+    container.innerHTML = '';
+    
+    Object.values(services).forEach(srv => {
+        const isSelected = selectedItems[srv.id] === 'service';
+        
+        const card = document.createElement('div');
+        card.className = `p-3 border-2 rounded-lg cursor-pointer transition duration-200 text-center ${isSelected ? 'border-green-600 bg-green-50 shadow-md scale-105' : 'border-gray-200 bg-white hover:border-green-400'}`;
+        card.setAttribute('onclick', `selectItem(${srv.id}, 'service')`);
+        
+        card.innerHTML = `
+            <h4 class="text-base font-medium text-gray-700 mb-1">${srv.name}</h4>
+            <div class="text-xl font-bold text-green-600">${srv.price.toLocaleString()} ر.س</div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+/**
+ * اختيار/إلغاء اختيار عنصر (باقة أو خدمة)
+ * @param {number} id - معرف العنصر
+ * @param {string} type - نوع العنصر ('package' أو 'service')
+ */
+function selectItem(id, type) {
+    // إذا كانت باقة، لا يمكن اختيار خدمات أخرى معها
+    if (type === 'package') {
+        // إذا كان العنصر المحدد هو باقة، يتم مسح كل شيء آخر واختيار الباقة فقط
+        selectedItems = { [id]: type };
+    } else { 
+        // إذا كانت خدمة
+        if (selectedItems[id]) {
+            // إلغاء الاختيار
+            delete selectedItems[id];
+        } else {
+            // مسح أي باقة مختارة إذا تم اختيار خدمة فردية
+            const packageKeys = Object.keys(packages).map(k => parseInt(k));
+            Object.keys(selectedItems).forEach(key => {
+                if (packageKeys.includes(parseInt(key))) {
+                    delete selectedItems[key];
+                }
+            });
+            // اختيار الخدمة
+            selectedItems[id] = type;
+        }
+    }
+    
+    // إعادة تحميل الواجهة لتحديث حالة الاختيار
+    loadPackages();
+    loadServices();
+}
+
+/**
+ * تحديث معلومات العميل من النموذج
+ */
+function updateClientInfoForm() {
+    const nameInput = document.getElementById('clientName');
+    const phoneInput = document.getElementById('clientPhone');
+    const emailInput = document.getElementById('clientEmail');
+    const companyInput = document.getElementById('companyName');
+    const typeSelect = document.getElementById('clientType');
+    const companyGroup = document.getElementById('companyNameGroup');
+
+    // تحميل القيم الحالية
+    nameInput.value = clientInfo.name;
+    phoneInput.value = clientInfo.phone;
+    emailInput.value = clientInfo.email;
+    companyInput.value = clientInfo.company;
+    typeSelect.value = clientInfo.type;
+
+    // إظهار/إخفاء حقل اسم الشركة
+    if (clientInfo.type === 'company') {
+        companyGroup.classList.remove('hidden');
+    } else {
+        companyGroup.classList.add('hidden');
+    }
+    
+    // مستمعي الأحداث لتحديث clientInfo
+    nameInput.oninput = (e) => clientInfo.name = e.target.value;
+    phoneInput.oninput = (e) => clientInfo.phone = e.target.value;
+    emailInput.oninput = (e) => clientInfo.email = e.target.value;
+    companyInput.oninput = (e) => clientInfo.company = e.target.value;
+    typeSelect.onchange = (e) => {
+        clientInfo.type = e.target.value;
+        if (clientInfo.type === 'company') {
+            companyGroup.classList.remove('hidden');
+        } else {
+            companyGroup.classList.add('hidden');
+        }
+    };
+}
+
+/**
+ * التحقق من صحة معلومات العميل (الحد الأدنى المطلوب)
+ * @returns {boolean} - هل المعلومات صحيحة
+ */
+function validateClientInfo() {
+    const name = document.getElementById('clientName').value.trim();
+    const phone = document.getElementById('clientPhone').value.trim();
+    
+    clientInfo.name = name;
+    clientInfo.phone = phone;
+    clientInfo.email = document.getElementById('clientEmail').value.trim();
+    clientInfo.company = document.getElementById('companyName').value.trim();
+    clientInfo.type = document.getElementById('clientType').value;
+
+    return name !== '' && phone !== '';
+}
+
+
+/**
+ * تحديث وعرض ملخص الطلب والأسعار (الخطوة 3)
+ */
+function updateSummary() {
+    const summaryContent = document.getElementById('summaryContent');
+    const selectedItemsList = [];
+    totalOriginalPrice = 0;
+    totalDiscount = 0;
+    finalTotal = 0;
+
+    // حساب الإجمالي
+    Object.keys(selectedItems).forEach(id => {
+        const itemId = parseInt(id);
+        const type = selectedItems[id];
+        const item = type === 'package' ? packages[itemId] : services[itemId];
+        
+        if (item) {
+            const originalPrice = item.originalPrice || item.price; // سعر أصلي للباقة أو سعر الخدمة
+            const price = item.price; // السعر النهائي (بعد الخصم إذا كان باقة)
+            const discount = originalPrice - price;
+            
+            totalOriginalPrice += originalPrice;
+            finalTotal += price;
+            totalDiscount += discount;
+            
+            selectedItemsList.push({
+                name: item.name,
+                price: price,
+                originalPrice: originalPrice,
+                discount: discount,
+                type: type
+            });
+        }
+    });
+
+    // توليد رسالة الخصم
+    if (totalDiscount > 0) {
+        discountMessage = `تهانينا! لقد حصلت على خصم إجمالي قدره ${totalDiscount.toLocaleString()} ر.س على مجموع خدماتك المختارة.`;
+    } else {
+        discountMessage = 'لم يتم تطبيق أي خصومات على الخدمات الفردية المختارة.';
+    }
+
+    // بناء محتوى الملخص
+    let html = `
+        <h4 class="text-lg font-semibold mb-3 text-indigo-700">الطلبات المختارة:</h4>
+        <ul class="mb-4 space-y-2">
+            ${selectedItemsList.map(item => `
+                <li class="flex justify-between items-center text-gray-700 border-b border-gray-200 pb-1">
+                    <span class="font-medium">${item.name} <span class="text-xs text-indigo-400">(${item.type === 'package' ? 'باقة' : 'خدمة'})</span></span>
+                    <span class="font-bold text-lg">${item.price.toLocaleString()} ر.س</span>
+                </li>
+            `).join('')}
+        </ul>
+        
+        <h4 class="text-lg font-semibold mt-6 mb-3 text-indigo-700">معلومات العميل:</h4>
+        <div class="space-y-1 text-sm text-gray-600">
+            <p><strong>الاسم:</strong> ${clientInfo.name}</p>
+            <p><strong>الهاتف:</strong> ${clientInfo.phone}</p>
+            <p><strong>البريد الإلكتروني:</strong> ${clientInfo.email || 'غير متوفر'}</p>
+            ${clientInfo.type === 'company' ? `<p><strong>اسم الشركة:</strong> ${clientInfo.company || 'غير متوفر'}</p>` : ''}
+        </div>
+        
+        <h4 class="text-lg font-semibold mt-6 mb-3 text-red-700">ملخص التكاليف:</h4>
+        <div class="bg-white p-4 rounded-lg border border-gray-200 space-y-2">
+            <div class="flex justify-between text-gray-600">
+                <span>الإجمالي قبل الخصم:</span>
+                <span class="font-medium">${totalOriginalPrice.toLocaleString()} ر.س</span>
+            </div>
+            <div class="flex justify-between text-red-500 font-bold">
+                <span>مبلغ الخصم:</span>
+                <span>-${totalDiscount.toLocaleString()} ر.س</span>
+            </div>
+            <div class="flex justify-between text-2xl font-extrabold border-t-2 border-indigo-200 pt-3 text-indigo-600">
+                <span>الإجمالي النهائي (التقديري):</span>
+                <span>${finalTotal.toLocaleString()} ر.س</span>
+            </div>
+            <p class="text-xs text-red-500 italic pt-2">${discountMessage}</p>
+        </div>
+    `;
+
+    summaryContent.innerHTML = html;
+}
+
+/**
+ * إرسال الطلب (الخطوة 3)
+ */
+function submitCalculator() {
+    // هنا يتم تنفيذ منطق الإرسال (مثلاً: إرسال البيانات عبر API أو بريد إلكتروني)
+    
+    // بما أننا لا نملك API للإرسال الفعلي، سنقوم بعرض رسالة نجاح
+    showNotification('تم استلام طلبك بنجاح! سيتم التواصل معك قريباً.', 'success');
+    
+    // إغلاق الحاسبة بعد 3 ثواني
+    setTimeout(closeCalculator, 3000);
+}
+
+
+// =========================================================
+// 5. وظائف المشاريع (Portfolio Modal)
+// =========================================================
+
+const portfolioData = {
+    1: { 
+        title: "تطبيق 'خدماتي' للمنازل الذكية", 
+        details: "هذا التطبيق هو حل متكامل لإدارة وصيانة خدمات المنازل الذكية. يتضمن: تصميم UX/UI عصري وموجه للمستخدم، تطوير أصيل (Native) لنظامي iOS و Android باستخدام React Native، تكامل مع نظام حجز ومواعيد آلي، ولوحة تحكم متقدمة لإدارة فنيي الصيانة. لقد أدى هذا المشروع لزيادة حجوزات العميل بنسبة 40% في أول ثلاثة أشهر من الإطلاق.",
+        image: "https://placehold.co/800x500/3b82f6/ffffff?text=App+Details"
+    },
+    2: { 
+        title: "منصة 'أناقة' للتسوق الإلكتروني", 
+        details: "متجر إلكتروني ضخم متخصص في الموضة والأزياء. تم بناؤه على منصة WooCommerce/Shopify لضمان المرونة والقابلية للتوسع. يتضمن المشروع: تصميم واجهات مستخدم مخصصة، نظام إدارة مخزون متقدم، تكامل بوابات دفع متعددة (مدى، فيزا، آبل باي)، وإعداد حملات تسويقية أولية على منصات التواصل الاجتماعي.",
+        image: "https://placehold.co/800x500/10b981/ffffff?text=E-commerce+Details"
+    },
+    3: { 
+        title: "موقع 'رؤية' للاستشارات الإدارية", 
+        details: "مشروع إعادة هوية كاملة وموقع ويب جديد لشركة استشارات إدارية مرموقة. الهدف كان تعزيز الموثوقية والاحترافية. تميز المشروع بالآتي: تصميم موقع تفاعلي باستخدام أحدث التقنيات (React/Next.js)، إنشاء دليل هوية بصرية كامل (شعار، ألوان، نماذج)، وتحسين محركات البحث (SEO) لضمان ظهور الشركة في النتائج الأولى.",
+        image: "https://placehold.co/800x500/f59e0b/ffffff?text=Website+Details"
+    },
+};
+
+/**
+ * فتح النافذة المنبثقة لعرض تفاصيل المشروع
+ * @param {number} id - معرف المشروع
+ */
+function openPortfolioModal(id) {
+    const data = portfolioData[id];
+    if (!data) return showNotification('تعذر العثور على تفاصيل المشروع.', 'error');
+
+    document.getElementById('modalTitle').textContent = data.title;
+    
+    const content = document.getElementById('modalContent');
+    content.innerHTML = `
+        <img src="${data.image}" alt="${data.title}" class="w-full rounded-lg shadow-md mb-6" onerror="this.onerror=null; this.src='https://placehold.co/800x500/667eea/ffffff?text=Project+Image'">
+        <p class="text-gray-700 leading-relaxed">${data.details}</p>
+    `;
+    
+    document.getElementById('portfolioModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closePortfolioModal() {
+    document.getElementById('portfolioModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+
+// =========================================================
+// 6. وظيفة تصدير الملخص إلى PDF
+// =========================================================
+
+function generatePDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4'
+    });
+
+    // إضافة خط عربي لضمان ظهور الأحرف
+    // هذا الخط غير متاح بشكل افتراضي في jspdf، لكننا سنستخدم خطاً احتياطياً
+    doc.setFont('times', 'normal');
+    
+    const clientName = clientInfo.name || 'العميل';
+    doc.text(`عرض سعر تقديري - لـ ${clientName}`, 105, 15, { align: 'center' });
+    doc.setLineWidth(0.5);
+    doc.line(20, 18, 180, 18);
+    
+    let y = 30;
+
+    // 1. تفاصيل العميل
+    doc.setFontSize(14);
+    doc.text('1. معلومات العميل:', 20, y);
+    y += 8;
+    doc.setFontSize(12);
+    doc.text(`الاسم: ${clientInfo.name}`, 20, y);
+    doc.text(`الهاتف: ${clientInfo.phone}`, 110, y);
+    y += 6;
+    doc.text(`البريد الإلكتروني: ${clientInfo.email || 'غير متوفر'}`, 20, y);
+    y += 10;
+    
+    // 2. العناصر المختارة
+    doc.setFontSize(14);
+    doc.text('2. الخدمات والباقات المختارة:', 20, y);
+    y += 8;
+    
+    let itemsY = y;
+    let totalItemsHtml = `
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+            <thead>
+                <tr style="background-color: #f2f2f2;">
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">الخدمة / الباقة</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">السعر التقديري (ر.س)</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    Object.keys(selectedItems).forEach(id => {
+        const itemId = parseInt(id);
+        const type = selectedItems[id];
+        const item = type === 'package' ? packages[itemId] : services[itemId];
+        if (item) {
+            totalItemsHtml += `
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${item.name}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${item.price.toLocaleString()}</td>
+                </tr>
+            `;
+        }
+    });
+    
+    totalItemsHtml += `
+            </tbody>
+        </table>
+    `;
+    
+    // ملاحظة: لا يمكن لـ jsPDF معالجة جداول HTML معقدة مباشرة، لذا قد تحتاج مكتبة إضافية (مثل html2canvas + autotable)
+    // أو رسم الجدول يدوياً. هنا سنعتمد على دالة جاهزة في البيئة إذا كانت متوفرة، وإلا سنستخدم طريقة بسيطة.
+    
+    // استخدام HTML2Canvas و jsPDF لتحويل جزء من الـ DOM إلى صورة أو PDF
+    const summaryDiv = document.getElementById('summaryContent');
+    html2canvas(summaryDiv, { 
+        scale: 2, 
+        useCORS: true, 
+        logging: false 
+    }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = 180; 
+        const pageHeight = 295; 
+        const imgHeight = canvas.height * imgWidth / canvas.width;
+        let heightLeft = imgHeight;
+        
+        doc.addImage(imgData, 'PNG', 15, 40, imgWidth, imgHeight);
+        
+        doc.save(`عرض-سعر-${clientName}.pdf`);
+        showNotification('تم إنشاء ملف PDF بنجاح!', 'success');
+    }).catch(error => {
+        console.error("Error generating PDF:", error);
+        showNotification('حدث خطأ أثناء توليد ملف PDF. يرجى المحاولة مرة أخرى.', 'error');
+    });
+}
+
+
+// =========================================================
+// 7. مستمعي الأحداث والتهيئة
+// =========================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. تحديث العام الحالي في التذييل
+    document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+    // 2. تحديث واجهة حاسبة التكاليف عند التفاعل الأولي
+    updateClientInfoForm();
+
+    // 3. مستمع حدث لإغلاق الحاسبة عند النقر خارج المحتوى
+    document.getElementById('calculatorModal').addEventListener('click', function(e) {
+        if (e.target.id === 'calculatorModal') {
+            closeCalculator();
+        }
+    });
+
+    // 4. مستمع حدث لتشغيل وظيفة تصدير PDF
+    document.getElementById('downloadPdfButton').addEventListener('click', generatePDF);
+    
+    // 5. مستمع حدث لنموذج التواصل (للتنبيه فقط)
+    document.getElementById('contactForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        showNotification('تم إرسال رسالتك بنجاح! شكراً لتواصلك.', 'success');
+        this.reset();
+    });
+
+    // 6. مستمعي الأحداث لتمرير الصفحة بسلاسة
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+                // إغلاق قائمة الجوال إذا كانت مفتوحة
+                const mobileMenu = document.getElementById('mobileMenu');
+                if (mobileMenu.classList.contains('open')) {
+                    toggleMobileMenu();
+                }
+            }
+        });
+    });
+});

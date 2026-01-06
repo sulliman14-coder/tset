@@ -1,0 +1,146 @@
+/*
+ * ملف style.css
+ * يحتوي على كل التنسيقات المخصصة التي كانت في وسم <style> بملف Ety.html.html
+ */
+
+* { font-family: 'Tajawal', Arial, sans-serif; }
+
+/* تأثير تدرج الخلفية للأزرار والمناطق المميزة */
+.gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.gradient-text { 
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent; /* لضمان أن النص يأخذ لون التدرج */
+}
+
+/* تأثير التكبير على التمرير للبطاقات */
+.card-hover { transition: all 0.3s ease; }
+.card-hover:hover { 
+    transform: translateY(-5px); 
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1); 
+}
+
+/* تنسيق مكون الإشعارات (Notification) */
+.notification { 
+    position: fixed; 
+    top: 20px; 
+    right: 20px; 
+    z-index: 1000; 
+    padding: 16px 24px; 
+    border-radius: 8px; 
+    color: white; 
+    font-weight: 500; 
+    /* إخفاء افتراضيًا */
+    transform: translateX(400px); 
+    transition: transform 0.3s ease; 
+}
+.notification.show { 
+    transform: translateX(0); 
+}
+.notification.success { background: linear-gradient(135deg, #10b981, #059669); }
+.notification.error { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.notification.info { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+
+/* تنسيق قائمة الجوال (Mobile Menu) */
+.mobile-menu { 
+    transform: translateX(100%); 
+    transition: transform 0.3s ease; 
+}
+.mobile-menu.open { 
+    transform: translateX(0); 
+}
+
+/* تنسيق بطاقات الخدمات */
+.service-card { 
+    background: linear-gradient(135deg, var(--start-color), var(--end-color)); 
+}
+
+/* تنسيق نافذة حاسبة التكاليف المنبثقة */
+.calculator-modal { 
+    display: none; 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(0,0,0,0.5); 
+    z-index: 1000; 
+}
+.calculator-content { 
+    background: white; 
+    border-radius: 16px; 
+    max-width: 800px; 
+    width: 90%; 
+    max-height: 90vh; 
+    overflow-y: auto; 
+}
+
+/* تنسيق زر الواتساب العائم */
+.whatsapp-float { 
+    position: fixed; 
+    bottom: 20px; 
+    left: 20px; 
+    z-index: 1000; 
+    background: #25d366; 
+    color: white; 
+    width: 60px; 
+    height: 60px; 
+    border-radius: 50%; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4); 
+    transition: all 0.3s ease; 
+    animation: pulse 2s infinite; 
+}
+.whatsapp-float:hover { 
+    transform: scale(1.1); 
+    box-shadow: 0 6px 20px rgba(37, 211, 102, 0.6); 
+}
+
+/* تأثير النبض لزر الواتساب */
+@keyframes pulse { 
+    0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.7); } 
+    70% { box-shadow: 0 0 0 10px rgba(37, 211, 102, 0); } 
+    100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); } 
+}
+
+/* تنسيق نافذة المشاريع المنبثقة */
+.portfolio-modal { 
+    display: none; 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(0,0,0,0.5); 
+    z-index: 1000; 
+}
+
+/* لافتة الخصم */
+.discount-banner { 
+    background: linear-gradient(135deg, #f59e0b, #d97706); 
+    color: white; 
+    padding: 8px 16px; 
+    border-radius: 20px; 
+    font-size: 12px; 
+    font-weight: bold; 
+    margin-bottom: 4px; 
+}
+
+/* النص الترويجي */
+.promotional-text { 
+    background: linear-gradient(135deg, #10b981, #059669); 
+    color: white; 
+    padding: 6px 12px; 
+    border-radius: 15px; 
+    font-size: 11px; 
+    margin-bottom: 6px; 
+}
+
+/* تأثيرات التكبير أثناء الانتقال */
+.scale-105 { transform: scale(1.05); transition: transform 0.2s ease; }
+.scale-110 { transform: scale(1.10); transition: transform 0.3s ease; }
+.scale-125 { transform: scale(1.25); transition: transform 0.2s ease; }
